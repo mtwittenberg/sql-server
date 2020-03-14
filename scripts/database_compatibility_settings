@@ -1,0 +1,18 @@
+--Input selected databases to where clause to view current settings
+
+--Set DB to 'Master'
+
+SELECT name, compatibility_level from sys.databases WHERE name = 'database_name1'
+
+SELECT name, compatibility_level from sys.databases WHERE name = 'database_name2'
+
+SELECT name, compatibility_level from sys.databases WHERE name = 'database_name3'
+
+SELECT name, compatibility_level from sys.databases WHERE name = 'database_name4'
+
+
+--Alter database to desired compatibility level
+
+Begin Tran
+ALTER DATABASE database_name1 SET COMPATIBILITY_LEVEL = 150
+commit
