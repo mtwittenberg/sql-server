@@ -1,0 +1,39 @@
+(table as table) => let
+
+    apikey      = "--hidden--",
+    endpoint    = "https://hostname.cognitiveservices.azure.com/anomalydetector/v1.0/timeseries/entire/detect",
+    inputTable = Table.TransformColumnTypes(table,{{"PostingDate", type text},{"Amount", type number}}),
+    jsontext    = Text.FromBinary(Json.FromValue(inputTable)),
+    jsonbody    = "{ ""Granularity"": ""monthly"", ""Sensitivity"": 95, ""Series"": "& jsontext &" }",
+    bytesbody   = Text.ToBinary(jsonbody),
+    headers     = [#"Content-Type" = "application/json", #"Ocp-Apim-Subscription-Key" = apikey],
+    bytesresp   = Web.Contents(endpoint, [Headers=headers, Content=bytesbody]),
+    jsonresp    = Json.Document(bytesresp),
+
+    respTable = Table.FromColumns({
+                    
+                     Table.Column(inputTable, "PostingDate")
+                     ,Table.Column(inputTable, "Amount")
+                     , Record.Field(jsonresp, "IsAnomaly") as list
+                     , Record.Field(jsonresp, "ExpectedValues") as list
+                     , Record.Field(jsonresp, "UpperMargins")as list
+                     , Record.Field(jsonresp, "LowerMargins") as list
+                     , Record.Field(jsonresp, "IsPositiveAnomaly") as list
+                     , Record.Field(jsonresp, "IsNegativeAnomaly") as list
+
+                  }, {"PostingDate", "Amount", "IsAnomaly", "ExpectedValues", "UpperMargin", "LowerMargin", "IsPositiveAnomaly", "IsNegativeAnomaly"}
+               ),
+    
+    respTable1 = Table.AddColumn(respTable , "UpperMargins", (row) => row[ExpectedValues] + row[UpperMargin]),
+    respTable2 = Table.AddColumn(respTable1 , "LowerMargins", (row) => row[ExpectedValues] -  row[LowerMargin]),
+    respTable3 = Table.RemoveColumns(respTable2, "UpperMargin"),
+    respTable4 = Table.RemoveColumns(respTable3, "LowerMargin"),
+
+    results = Table.TransformColumnTypes(
+
+                respTable4,
+                {{"PostingDate", type datetime}, {"Amount", type number}, {"IsAnomaly", type logical}, {"IsPositiveAnomaly", type logical}, {"IsNegativeAnomaly", type logical},
+                 {"ExpectedValues", type number}, {"UpperMargins", type number}, {"LowerMargins", type number}}
+              )
+
+ in results
